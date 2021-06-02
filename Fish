@@ -1,0 +1,73 @@
+Fish Hunt Harvest Scavenge
+
+!alias fish embed <drac2>
+args = &ARGS&
+parse = argparse(args)
+c = character()
+species = load_json(get_svar('FishSpecies', {"Carp": 10, "Bass": 10, "Pike": 30, "Salmon": 25, "Catfish": 30, "Trout": 5,"Shad": 5,"Gar": 100}))
+index = 0
+inve_mod = c.skills.investigation.value
+surv_mod = c.skills.survival.value
+ah_mod = c.skills.animalHandling.value
+natu_mod = c.skills.nature.value
+ath_mod = c.skills.athletics.value
+perc_mod = str(c.skills.perception.value)
+if 'observant' in get('feats', '').lower():
+    perc_mod += ' + 5 [observant]'
+
+
+
+______________________________________________
+
+
+#Finding Skill Mods
+perc_mod = str(c.skills.perception.value)
+athl_mod = c.skills.athletics.value
+acro_mod = c.skills.acrobatics.value
+pers_mod = c.skills.persuasion.value
+dece_mod = c.skills.deception.value
+inti_mod = c.skills.intimidation.value
+if 'observant' in get('feats', '').lower():
+    perc_mod += ' + 5 [observant]'
+
+# Rolling all checks, even if not needed
+perc_adv = parse.adv(custom={"adv":"percadv", "dis": "percdis"})
+perc_string = ["1d20", "2d20kh1", "2d20kl1"][parse.adv()] if "percneutral" not in args and perc_adv == 0 else ["1d20", "2d20kh1", "2d20kl1"][perc_adv]
+perc_check = vroll(f"""{perc_string}+{perc_mod}{f"+{parse.join('b', '+')}" if parse.get("b") else ""}{"+1d4" if parse.get("guidance") else ""}""")
+athl_check = vroll(f"""{["1d20", "2d20kh1", "2d20kl1"][parse.adv()]}+{athl_mod}""")
+acro_check = vroll(f"""{["1d20", "2d20kh1", "2d20kl1"][parse.adv()]}+{acro_mod}""")
+charisma_check = vroll(f"""{["1d20", "2d20kh1", "2d20kl1"][parse.adv()]}+{str(max(pers_mod, dece_mod, inti_mod))}""")
+speed_check = vroll(f"""{["1d20", "2d20kh1", "2d20kl1"][parse.adv()]}+{str(max(athl_mod, acro_mod))}""")
+
+cname = "GuardDuty"
+c.set_cvar_nx(cname, dump_json(blankData))
+data = load_json(get(cname, {}))
+data["totalXP"] += xp
+data["totalEvents"] += 1
+data["totalSpotted"] += int(spotted)
+data["totalProblemsResolved"] += int(resolved)
+data["totalProblems"] += int(problem)
+data["totalProblemsSpotted"] += int(problem and spotted)
+c.set_cvar(cname, dump_json(data))
+
+base = f'-title "{c.name} goes on their guard duties." -color {color} -thumb {image} '
+
+# Check DC Generation and XP Adjustment:
+# skill_dc_list = [perception_dc, specific_skill_dc]
+skill_dc_list, percentile_list = [5, 5], [25, 65, 90]
+for i in range(2):
+    dc_percentile = vroll('1d100').total
+    for j in percentile_list:
+        if dc_percentile > j:
+            skill_dc_list[i] += 5
+        else:
+            break
+perc_dc, skill_dc = skill_dc_list[0], skill_dc_list[1]
+xp_mod = (perc_dc + skill_dc) / 5
+
+
+# use bagSettings
+bag_settings=load_json(get('bagSettings','{}'))
+item_table.update(bag_settings.get('customWeights'))
+show_bag=bag_settings.get('openMode','').lower()!='none'
+show_weight=bag_settings.get('weightTracking','').lower()=='on'
