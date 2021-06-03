@@ -11,24 +11,11 @@ surv_mod = c.skills.survival.value
 ah_mod = c.skills.animalHandling.value
 natu_mod = c.skills.nature.value
 ath_mod = c.skills.athletics.value
-perc_mod = str(c.skills.perception.value)
-if 'observant' in get('feats', '').lower():
-    perc_mod += ' + 5 [observant]'
+perc_mod = c.skills.perception.value
 
 
 
 ______________________________________________
-
-
-#Finding Skill Mods
-perc_mod = str(c.skills.perception.value)
-athl_mod = c.skills.athletics.value
-acro_mod = c.skills.acrobatics.value
-pers_mod = c.skills.persuasion.value
-dece_mod = c.skills.deception.value
-inti_mod = c.skills.intimidation.value
-if 'observant' in get('feats', '').lower():
-    perc_mod += ' + 5 [observant]'
 
 # Rolling all checks, even if not needed
 perc_adv = parse.adv(custom={"adv":"percadv", "dis": "percdis"})
