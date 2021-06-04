@@ -13,7 +13,33 @@ natu_mod = c.skills.nature.value
 ath_mod = c.skills.athletics.value
 perc_mod = c.skills.perception.value
 
-
+______________________________________________
+!test <drac2>
+c = character()
+surv_mod = c.skills.survival.value
+perc_mod = c.skills.perception.value
+fishdata = {1: {"species": "Catfish", "weight": 200, "percent": 0, "DC": 10}, 2: {"species": "Bass", "weight": 50, "percent": 35, "DC": 5}, 3: {"species": "Carp", "weight": 100, "percent": 60, "DC": 5}, 4: {"species": "Salmon", "weight": 250, "percent": 75, "DC": 15}, 5: {"species": "Sturgeon", "weight": 1000, "percent": 90, "DC": 15}}
+percentile = vroll('1d100').total
+index = 1
+for i in fishdata:
+  if percentile > fishdata[index].get('percent'):
+    index += 1
+  else:
+    break
+index -= 1
+perc_check = vroll(f'1d10+{str(perc_mod)}').total
+find_dc = fishdata[index].get('DC')
+if perc_check > find_dc:
+  success = 'TRUE'
+else:
+  success = 'FALSE'
+surv_check = vroll(f'1d20+{str(surv_mod)}').total
+species = fishdata[index].get('species')
+max_weight = fishdata[index].get('weight')
+max_DC = 20
+harvest = surv_check/max_DC*max_weight
+return f'{percentile=} {perc_mod=} {perc_check=} {find_dc=} {success=} {surv_mod=} {surv_check=} {species=} {max_weight=} {harvest=}'
+</drac2>
 
 ______________________________________________
 
