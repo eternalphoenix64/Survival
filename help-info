@@ -1,0 +1,137 @@
+# Survival
+############################################################################################################################################################
+############################################################################################################################################################
+**!fish help**
+
+`!fish [adv/dis] [guidance] [Xyyy] [Xadv/Xdis]`
+
+`adv`, `dis`, and `guidance` arguments will be applied to all checks
+
+`Xadv`/`Xdis` - replace `X` with f, c, or h to specify a check to have adv/dis
+
+**Find:**
+To specify an ability, replace `Xyyy` with
+`fani`, `finsi`, `finv`, `fnat`, `fperc`, or `fsurv`
+
+**Catch Check:**
+To specify an ability, replace `Xyyy` with
+`cani`, `cath`, or `csurv`
+
+**Harvest Check:**
+To specify an ability, replace `Xyyy` with
+`hani`, `hmed`, `hnat`, or `hsurv`
+
+**Bag Integration:**
+If tracking weight, each species should be set up with a weight of 1 to track pounds harvested
+`!uvar SuvivalNoBag True` to turn off `!bag` integration (can also be set as a cvar)
+`!cvar fishSurvivalHarvesting False` to turn off automatic harvesting (can also be set as a uvar)
+
+`!fish help` of `!fish ?` output this embed 
+
+`!survival fish` for highly detailed help
+
+`!survival settings` for help with customization
+############################################################################################################################################################
+############################################################################################################################################################
+
+############################################################################################################################################################
+############################################################################################################################################################
+**!hunt help**
+
+`!hunt <large/small/big> [adv/dis/ea] [guidance] [Xyyy] [Xadv/Xdis]`
+
+`small`/`large`/`big` - hunt big game or small game
+
+`adv`/`dis`/`guidance` applied to rolls, `ea` only applies to kill check
+
+`Xadv`/`Xdis`: Replace `X` with f, k, or c for a specific check to have adv/dis
+
+**Find Check:**
+To specify an ability, replace `Xyyy` with
+`fani`, `finsi`, `finv`, `fnat`, `fperc`, or `fsurv`
+
+**Harvest Check:**
+To specify an ability, replace `Xyyy` with
+`hani`, `hmed`, `hnat`, or `hsurv`
+
+**Bag Integration:**
+If tracking weight, each species should be set up with a weight of 1 to track pounds harvested
+`!uvar SuvivalNoBag True` to turn off `!bag` integration (can also be set as a cvar)
+`!cvar huntSurvivalHarvesting False` to turn off automatic harvesting (can also be set as a uvar)
+
+`!hunt help` of `!hunt ?` output this embed 
+
+`!survival hunt` for highly detailed help
+
+`!survival settings` for help with customization
+############################################################################################################################################################
+############################################################################################################################################################
+
+############################################################################################################################################################
+############################################################################################################################################################
+**!forage help**
+
+`!fish [adv/dis] [guidance] [Xyyy] [Xadv/Xdis]`
+
+`adv`, `dis`, and `guidance` arguments will be applied to all checks
+
+`Xadv`/`Xdis` - replace `X` with f, c, or h to specify a check to have adv/dis
+
+**Find:**
+To specify an ability, replace `Xyyy` with
+`fath`, `finsi`, `finve`, `fmed`, `fnat`, `fperc`, or `fsurv`
+
+**Safety Check:**
+To specify an ability, replace `Xyyy` with
+`chist`, `cinsi`, `cinve`, `cmed`, `cnat`, or `csurv`
+
+**Harvest Check:**
+To specify an ability, replace `Xyyy` with
+``hnat`, `hslei`, or `hsurv`
+
+**Bag Integration:**
+If tracking weight, each species should be set up with a weight of 1 to track pounds harvested
+`!uvar SuvivalNoBag True` to turn off `!bag` integration (can also be set as a cvar)
+`!cvar forSurvivalHarvesting False` to turn off automatic harvesting (can also be set as a uvar)
+
+`!forage help` of `!forage ?` output this embed 
+
+`!survival forage` for highly detailed help
+
+`!survival settings` for help with customization
+############################################################################################################################################################
+############################################################################################################################################################
+
+############################################################################################################################################################
+############################################################################################################################################################
+**!survival help**
+
+`!survival [general] [fish] [hunt] [forage]`
+
+`!survival` - outputs all instructions
+
+**Arguments**
+`general` includes information common to all aliases
+`fish` includes information specific to the `!fish` alias
+`hunt` includes information specific to the `!hunt` alias
+`forage` includes information specific to the `!forage` alias
+
+`!survival help` of `!survival ?` outputs this message
+############################################################################################################################################################
+############################################################################################################################################################
+
+############################################################################################################################################################
+############################################################################################################################################################
+**!survival settings help**
+
+`!survival settings [general] [fish] [hunt] [huntlarge] [forage]`
+
+`!survival settings` outputs the long embed with all the svars and lots of repeated information
+
+`general` outputs the generic settings svar that affects all the aliases
+`fish` outputs the FishSpecies svar default with instructions to set your own
+`hunt` outputs the HuntSpeciesSmall svar default with instructions to set your own
+`huntlarge` outputs the HuntSpeciesLarge svar default
+`forage` outputs the ForageSpecies svar default with instructions to set your own
+############################################################################################################################################################
+############################################################################################################################################################
