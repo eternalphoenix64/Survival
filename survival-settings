@@ -1,0 +1,78 @@
+<drac2>
+args = &ARGS&
+
+#Help setup
+help = 'help survival settings -here'
+if len(args) == 1 and args[0].lower() in ['help', '?']:
+    return help
+
+#Text for the embeds
+#general insert
+general = """ -f 'Default of `SurvSettings`|```py
+{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0}
+```
+`xxxxFind` is a list that determines percentage of DCs for the find process. The DC is seeded at 5, and increments by 5 for each value less than the d100 roll. A list with a length of 4 has a max DC of 25 (initial 5, plus 4 possible increments of 5)
+
+`xxxxHarvDC` defines the DC for 100% weight harvest. Set `"harvest"` to `"false"` if you want to turn off automatic harvesting at the server level. Leave `"true"` to allow users to customize by uvar or cvar. `"cooldown"` being set to `"true"` will turn on the cooldown timer. Be sure to set `"coolTime"` to something greater than `0`. Time is in seconds.'"""
+
+#fish insert
+fish = """ -f 'Default of `FishSpecies`|```py
+[{"species": "Catfish", "weight": 20, "percent": 0, "DC": 10}, {"species": "Bass", "weight": 5, "percent": 35, "DC": 5}, {"species": "Carp", "weight": 10, "percent": 60, "DC": 5}, {"species": "Salmon", "weight": 25, "percent": 75, "DC": 15}, {"species": "Sturgeon", "weight": 100, "percent": 90, "DC": 15}]
+```
+Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys.
+`"species"` is, clearly, the name of the species.
+`"weight"` is the maximum weight that can be harvested.
+`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
+`"DC"` is the DC to catch the fish once it's been hooked.'"""
+
+#hunt insert
+hunt = """ -f 'Default of `HuntSpeciesSmall`|(`HuntSpeciesLarge` is the same format)
+```py
+[{"species": "Squirrel", "weight": 5, "percent": 0, "AC": 10}, {"species": "Rabbit", "weight": 8, "percent": 45, "AC": 11}, {"species": "Turkey", "weight": 20, "percent": 75, "AC": 12}, {"species": "Waterfowl", "weight": 10, "percent": 85, "AC": 15}, {"species": "Pheasant", "weight": 5, "percent": 95, "AC": 14}]
+```
+Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys.
+`"species"` is, clearly, the name of the species.
+`"weight"` is the maximum weight that can be harvested.
+`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
+`"AC"` is the AC of the animal for a vitals hit, set this higher than standard beasts to simulate the accuracy of a vitals hit.'"""
+
+#hunt large insert
+huntlarge = """ -f 'Just in case you want to see the `HuntSpeciesLarge` default|```py
+[{"species": "Squirrel", "weight": 5, "percent": 0, "AC": 10}, {"species": "Rabbit", "weight": 8, "percent": 45, "AC": 11}, {"species": "Turkey", "weight": 20, "percent": 75, "AC": 12}, {"species": "Waterfowl", "weight": 10, "percent": 85, "AC": 15}, {"species": "Pheasant", "weight": 5, "percent": 95, "AC": 14}]
+```' """
+
+#forage insert
+forage = """ -f 'Default of `ForageSpecies`|```py
+[{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]
+```
+Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys. 
+`"species"` is, clearly, the name of the species.
+`"weight"` is the maximum weight that can be harvested.
+`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
+`"DC"` is the DC to determine if the food that is found is safe to eat'"""
+
+#Setup the core of the embed
+base = f'embed -title "How to adjust the settings for the Survival Collection" -thumb {image} -color {color} -desc "The customization of the collection is dependent on several svars. Each alias can draw from an svar to get a different set of species and their likelihood of appearance and DC to catch. An additional svar can adjust maximum DCs, likelihood of those DCs, and a few other settings" -footer "All arguments in < args > brackets are mandatory arguments and the alias won\'t work without them. Arguments in [ args ] brackets are optional." -f "Setting your own svar|Run `!svar <svar name> <value>`, see valid svar names below"'
+
+#Setup SurvSetting field
+if 'gen' in args or 'general' in args or len(args) == 0:
+    base += f'{general}'
+ 
+#Setup the fishspecies field
+if 'fish' in args or len(args) == 0:
+    base += f'{fish}'
+
+#Setup the huntspecies field
+if 'hunt' in args or len(args) == 0:
+    base += f'{hunt}'
+
+#show the HuntSpeciesLarge default
+if 'huntlarge' in args or len(args) == 0:
+    base += f'{huntlarge}'
+
+#Setup the foragespecies field
+if 'forage' in args or len(args) == 0:
+    base += f'{forage}'
+
+return base
+</drac2>
