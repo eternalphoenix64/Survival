@@ -1,0 +1,255 @@
+<drac2> 
+
+# Setup the embed
+base = f'embed -title "{name} goes foraging!" -color {color} -thumb {image} -desc "Foraging isn\'t quite as simple as just walking out to a garden and picking some food off the ground. You have to find where food is growing in the wild, you have to make sure that it\'s safe food, and you have decide whether or not it\'s adequately ripe enough to eat."'
+
+# Load data
+c = character()
+cs = character().skills
+args = &ARGS&
+parse = argparse(args)
+foragedata = load_json(get_svar("ForageSpecies", '[{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]'))
+settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0}'))
+dc_percent_list = settings.get("foraFind")
+max_DC = settings.get("foraHarvDC")
+percentile_species = vroll('1d100')
+percentile_dc = vroll('1d100')
+loot_added = False
+misc_bonus = ""
+find_bonus = ""
+catch_bonus = ""
+harv_bonus = ""
+bonus = parse.get('b')
+fbonus = parse.get('fb')
+cbonus = parse.get('cb')
+hbonus = parse.get('hb')
+if "-b" in args:
+  misc_bonus += f'+{bonus[0]}'
+if "-fb" in args:
+  find_bonus += f'+{fbonus[0]}'
+if "-cb" in args:
+  catch_bonus += f'+{cbonus[0]}'
+if "-hb" in args:
+  harv_bonus += f'+{hbonus[0]}'
+
+#cooldown handling
+period=settings.get('coolTime')
+if settings.get('cooldown') == True:
+  last=float(get('last_survival',0))
+  current=float(time()) 
+  if (current-last) < period:
+    if period < 91:
+      errtext = f' "This command can only be run every {period} seconds"'
+    else:
+      x = int(last+period)
+      errtext = f'''"You can do this again at {'<t:' + x + ':f>'}"'''
+    err(errtext)
+  else:
+     c.set_cvar('last_survival',current)
+
+#Setup advantage boolwise logic
+advbase = parse.adv(boolwise=True)
+far = parse.adv(custom={'adv': 'fadv', 'dis': 'fdis'}, boolwise=True)
+car = parse.adv(custom={'adv': 'cadv', 'dis': 'cdis'}, boolwise=True)
+har = parse.adv(custom={'adv': 'hadv', 'dis': 'hdis'}, boolwise=True)
+if far == None and advbase != None:
+	far = advbase
+if car == None and advbase != None:
+	car = advbase
+if har == None and advbase != None:
+	har = advbase
+if far == True and advbase != None:
+	if advbase == False:
+		far = None
+	else:
+		far = far
+if far == False and advbase != None:
+	if advbase == True:
+		far = None
+	else:
+		far = far
+if car == True and advbase != None:
+	if advbase == False:
+		car = None
+	else:
+		car = car
+if car == False and advbase != None:
+	if advbase == True:
+		car = None
+	else:
+		car = car
+if har == True and advbase != None:
+	if advbase == False:
+		har = None
+	else:
+		har = har
+if har == False and advbase != None:
+	if advbase == True:
+		har = None
+	else:
+		har = har
+
+# Setup settings for bag integration and automatic harvesting
+bag_setting = load_json(get("SurvivalNoBag", "false").lower())
+if bag_setting is True:
+	bag_integration = False
+else:
+	bag_integration = True
+harv_setting = load_json(get("forSurvHarvesting", "true").lower())
+if harv_setting is False or settings.get('harvest') is False:
+	harvesting = False
+else:
+	harvesting = True
+	
+# Help setup
+help = 'help forage -here'
+if len(args) == 1 and args[0].lower() in ['help', '?']:
+    return help
+    
+# Establish DC to find a good growing spot
+find_dc = 5
+for i in dc_percent_list:
+	if percentile_dc.total > i:
+		find_dc += 5
+	else:
+		break
+
+# Figure out which fish is being fished for
+index = 0
+for j in foragedata:
+	if percentile_species.total > foragedata[index].get('percent'):
+		index += 1
+	else:
+		break
+index -= 1
+
+# Load the data for that particular food
+catch_dc = foragedata[index].get('DC')
+species = foragedata[index].get('species')
+max_weight = foragedata[index].get('weight')
+
+# Roll the check to find a good spot
+if 'fath' in args:
+	fab = cs.athletics
+	fskill = "Athletics"
+elif 'finsi' in args:
+	fab = cs.insight
+	fskill = "Insight"
+elif 'finv' in args:
+	fab = cs.investigation
+	fskill = "Investigation"
+elif 'fmed' in args:
+	fab = cs.medicine
+	fskill = "Medicine"
+elif 'fnat' in args:
+	fab = cs.nature
+	fskill = "Nature"
+elif 'fperc' in args:
+	fab = cs.perception
+	fskill = "Perception"
+elif 'fsurv' in args:
+	fab = cs.survival
+	fskill = "Survival"
+else:
+	find_skill_list = [cs.athletics, cs.insight, cs.investigation, cs.medicine, cs.nature, cs.perception, cs.survival]
+	fab = max(find_skill_list)
+	f_skills_list = ["Athletics", "Insight", "Investigation", "Medicine", "Nature", "Perception", "Survival"]
+	findex = find_skill_list.index(fab)
+	fskill = f_skills_list[findex]
+find_string = fab.d20(base_adv=far) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + find_bonus
+find_check = vroll(find_string)
+
+# Establish the safety check
+if 'chist' in args:
+	cab = cs.history
+	cskill = "History"
+elif 'cinsi' in args:
+	cab = cs.insight
+	cskill = "Insight"
+elif 'cinv' in args:
+	cab = cs.investigation
+	cskill = "Investigation"
+elif 'cmed' in args:
+	cab = cs.medicine
+	cskill = "Medicine"
+elif 'cnat' in args:
+	cab = cs.nature
+	cskill = "Nature"
+elif 'csurv' in args:
+	cab = cs.survival
+	cskill = "Survival"
+else:
+	catch_skill_list =[cs.history, cs.insight, cs.investigation, cs.medicine, cs.nature, cs.survival]
+	cab = max(catch_skill_list)
+	c_skills_list = ["History", "Insight", "Investigation", "Medicine", "Nature", "Survival"]
+	cindex = catch_skill_list.index(cab)
+	cskill = c_skills_list[cindex]
+catch_string = cab.d20(base_adv=car) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + catch_bonus
+catch_check = vroll(catch_string)
+
+# Establish the harvest check
+if 'hmed' in args:
+	hab = cs.medicine
+	hskill = "Medicine"
+elif 'hnat' in args:
+	hab = cs.nature
+	hskill = "Nature"
+elif 'hslei' in args:
+	hab = cs.sleightOfHand
+	hskill = "Sleight of Hand"
+elif 'hsurv' in args:
+	hab = cs.survival
+	hskill = "Survival"
+else:
+	harv_skill_list = [cs.medicine, cs.nature, cs.sleightOfHand, cs.survival]
+	hab = max(harv_skill_list)
+	h_skills_list = ["Medicine", "Nature", "Sleight of Hand", "Survival"]
+	hindex = harv_skill_list.index(hab)
+	hskill = h_skills_list[hindex]
+harvest_string = hab.d20(base_adv=har) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + harv_bonus
+harvest_check = vroll(harvest_string)
+
+# Process the harvest check, even if things weren't caught
+if harvest_check.total < max_DC:
+  harv_percent = floor(harvest_check.total/max_DC*100)
+else:
+  harv_percent = 100
+if harv_percent/100*max_weight < 1:
+	harvest = 1
+else:
+	harvest = floor(harv_percent/100*max_weight)
+
+# Find a good spot (or not), check for safety (or not), harvest it and add to bag (or not)
+if find_check.total >= find_dc:
+	base += f' -f "You found a good growing spot!|**DC {find_dc}**\n**{fskill}:** {find_check}\nYou are foraging for: **{species}**"'
+	if catch_check.total >= catch_dc:
+		base += f' -f "Checking for safety... it\'s safe to eat!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
+		if harvesting:
+			base += f' -f "Time to harvest|**DC {max_DC}** (for 100%)\n**Max Weight:** {max_weight} lbs.\n**{hskill}:** {harvest_check}/{max_DC}*100 = **{harv_percent}%** (max 100)\nYou harvested: **{harvest}** lbs. of **{species}**"'
+			if bag_integration is False:
+				base += f' -footer "`!survival help` | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
+			else:
+				bag_name = 'Forage'
+				bag = load_json(get('bags', []))
+				for bag_cat in bag:
+					if bag_name.lower() in bag_cat[0].lower():
+						bag_name = bag_cat[0]
+						bag_loot_count = bag_cat[1][species] if species in list(bag_cat[1].keys()) else 0
+						bag_cat[1][species] = bag_cat[1][species] + harvest if bag_loot_count > 0 else harvest
+						loot_added = True
+						break
+				if not loot_added:
+					bag.append([bag_name, {species: harvest}])
+				c.set_cvar('bags', dump_json(bag))
+				base += f' -f "Your foraging harvest was added to your bag!|{harvest} pounds of **{species}** was added to your __{bag_name.capitalize()}__ pouch for you!"'
+				base += f' -footer "`!survival help` | @eternalphoenix64#3855"'
+		else:
+			base += f' -f "Safe to eat doesn\'t mean you have to|Thank you for not taking more food than you need. You\'re a good person."'
+	else:
+		base += f' -f "Checking for safety... you can\'t be certain it is safe!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
+		base += f' -footer "`!survival help` | @eternalphoenix64#3855"'
+else:
+	base += f' -f "You couldn\'t find anything!|**DC {find_dc}**\n**{fskill}:** {find_check}"'
+	base += f' -footer "`!survival help` | @eternalphoenix64#3855"'
+return base
+</drac2>
