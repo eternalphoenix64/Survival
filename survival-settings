@@ -9,11 +9,13 @@ if len(args) == 1 and args[0].lower() in ['help', '?']:
 #Text for the embeds
 #general insert
 general = """ -f 'Default of `SurvSettings`|```py
-{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0}
+{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}
 ```
-`xxxxFind` is a list that determines percentage of DCs for the find process. The DC is seeded at 5, and increments by 5 for each value less than the d100 roll. A list with a length of 4 has a max DC of 25 (initial 5, plus 4 possible increments of 5)
+`"xxxxFind"` is a list that determines percentage of DCs for the find process. The DC starts at 5, and adds 5 for each value less than the d100 roll. Therefore - max DC is 5+5*n where n is the length of the list.
 
-`xxxxHarvDC` defines the DC for 100% weight harvest. Set `"harvest"` to `"false"` if you want to turn off automatic harvesting at the server level. Leave `"true"` to allow users to customize by uvar or cvar. `"cooldown"` being set to `"true"` will turn on the cooldown timer. Be sure to set `"coolTime"` to something greater than `0`. Time is in seconds.'"""
+`"xxxxHarvDC"` defines the DC for 100% weight harvest. Set `"harvest"` to `true` allows users to customize, `false` turns automatic harvest off on the server level. 
+
+If `"cooldown"` is set `true`, the global cooldown timer becomes active. If `xxxxCool` is set `true`, the global cooldown is overriden for the `xxxx` alias. Make sure any active timer has a cooldown time greater than 0, time is in seconds.'"""
 
 #fish insert
 fish = """ -f 'Default of `FishSpecies`|```py
@@ -38,7 +40,7 @@ Note that this is a list of dicts. More dicts can be added to the list. Each dic
 
 #hunt large insert
 huntlarge = """ -f 'Just in case you want to see the `HuntSpeciesLarge` default|```py
-[{"species": "Squirrel", "weight": 5, "percent": 0, "AC": 10}, {"species": "Rabbit", "weight": 8, "percent": 45, "AC": 11}, {"species": "Turkey", "weight": 20, "percent": 75, "AC": 12}, {"species": "Waterfowl", "weight": 10, "percent": 85, "AC": 15}, {"species": "Pheasant", "weight": 5, "percent": 95, "AC": 14}]
+[{"species": "Deer", "weight": 100, "percent": 0, "AC": 14}, {"species": "Elk", "weight": 200, "percent": 40, "AC": 16}, {"species": "Bear", "weight": 150, "percent": 65, "AC": 18}, {"species": "Boar", "weight": 350, "percent": 75, "AC": 18}, {"species": "Antelope", "weight": 125, "percent": 90, "AC": 16}, {"species": "Mountain Lion", "weight": 80, "percent": 95, "AC": 17}]
 ```' """
 
 #forage insert
