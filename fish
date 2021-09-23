@@ -9,7 +9,7 @@ cs = character().skills
 args = &ARGS&
 parse = argparse(args)
 fishdata = load_json(get_svar("FishSpecies", '[{"species": "Catfish", "weight": 20, "percent": 0, "DC": 10}, {"species": "Bass", "weight": 5, "percent": 35, "DC": 5}, {"species": "Carp", "weight": 10, "percent": 60, "DC": 5}, {"species": "Salmon", "weight": 25, "percent": 75, "DC": 15}, {"species": "Sturgeon", "weight": 100, "percent": 90, "DC": 15}]'))
-settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0}'))
+settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}'))
 dc_percent_list = settings.get("fishFind")
 max_DC = settings.get("fishHarvDC")
 percentile_species = vroll('1d100')
@@ -24,28 +24,13 @@ fbonus = parse.get('fb')
 cbonus = parse.get('cb')
 hbonus = parse.get('hb')
 if "-b" in args:
-  misc_bonus += f'+{bonus[0]}'
+	misc_bonus += f'+{bonus[0]}'
 if "-fb" in args:
-  find_bonus += f'+{fbonus[0]}'
+	find_bonus += f'+{fbonus[0]}'
 if "-cb" in args:
-  catch_bonus += f'+{cbonus[0]}'
+	catch_bonus += f'+{cbonus[0]}'
 if "-hb" in args:
-  harv_bonus += f'+{hbonus[0]}'
-
-#cooldown handling
-period=settings.get('coolTime')
-if settings.get('cooldown') == True:
-  last=float(get('last_survival',0))
-  current=float(time()) 
-  if (current-last) < period:
-    if period < 91:
-      errtext = f' "This command can only be run every {period} seconds"'
-    else:
-      x = int(last+period)
-      errtext = f'''"You can do this again at {'<t:' + x + ':f>'}"'''
-    err(errtext)
-  else:
-     c.set_cvar('last_survival',current)
+	harv_bonus += f'+{hbonus[0]}'
 
 #Setup advantage boolwise logic
 advbase = parse.adv(boolwise=True)
@@ -102,10 +87,10 @@ else:
 	harvesting = True
 
 # Help setup
-help = 'help hunt -here'
+help = 'help fish -here'
 if len(args) == 1 and args[0].lower() in ['help', '?']:
-    return help
-    
+	return help
+
 # Establish DC to find a good fishing spot
 find_dc = 5
 for i in dc_percent_list:
@@ -116,17 +101,27 @@ for i in dc_percent_list:
 
 # Figure out which fish is being fished for
 index = 0
-for j in fishdata:
-	if percentile_species.total > fishdata[index].get('percent'):
+specific_species = []
+for i,j in enumerate(fishdata):
+	cur_species = fishdata[i].get('species')
+	for arg in args:
+		if (arg.lower() in cur_species.lower()) and (cur_species not in specific_species):
+			specific_species.append(cur_species)
+	if percentile_species.total > fishdata[i].get('percent'):
 		index += 1
-	else:
-		break
 index -= 1
 
 # Load the data for that particular fish
 catch_dc = fishdata[index].get('DC')
 species = fishdata[index].get('species')
 max_weight = fishdata[index].get('weight')
+
+#handling of specific species
+targeted = None
+if len(specific_species) > 0 and species in specific_species:
+	targeted = True
+elif len(specific_species) > 0 and species not in specific_species:
+	targeted = False
 
 # Roll the check to find a good spot
 if 'fani' in args:
@@ -199,9 +194,9 @@ harvest_check = vroll(harvest_string)
 
 # Process the harvest check, even if things weren't caught
 if harvest_check.total < max_DC:
-  harv_percent = floor(harvest_check.total/max_DC*100)
+	harv_percent = floor(harvest_check.total/max_DC*100)
 else:
-  harv_percent = 100
+	harv_percent = 100
 if harv_percent/100*max_weight < 1:
 	harvest = 1
 else:
@@ -209,13 +204,13 @@ else:
 
 # Find a good spot (or not), catch it (or not), harvest it and add to bag (or not)
 if find_check.total >= find_dc:
-	base += f' -f "You found a good fishing spot!|**DC {find_dc}**\n**{fskill}:** {find_check}\nYou are fishing for: **{species}**"'
+	base += f' -f "You found a good fishing spot!|**DC {find_dc}**\n**{fskill}:** {find_check}\nYou {"are fishing for" if specific_species else "end up hooking"}: **{"** or **".join(specific_species) if specific_species else species}**"'
 	if catch_check.total >= catch_dc:
-		base += f' -f "You caught a fish!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
-		if harvesting:
+		base += f' -f "You caught a fish!|**DC {catch_dc}**\n**{cskill}:** {catch_check}\n{"**Species:** "+species if specific_species else ""}"'
+		if harvesting and (targeted == True or targeted == None):
 			base += f' -f "Time to clean your catch|**DC {max_DC}** (for 100%)\n**Max Weight:** {max_weight} lbs.\n**{hskill}:** {harvest_check}/{max_DC}*100 = **{harv_percent}%** (max 100)\nYou harvested: **{harvest}** lbs. of **{species}**"'
 			if bag_integration is False:
-				base += f' -footer "`!survival help` | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
+				base += f' -footer "!survival help | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
 			else:
 				bag_name = 'Fish'
 				bag = load_json(get('bags', []))
@@ -230,14 +225,37 @@ if find_check.total >= find_dc:
 					bag.append([bag_name, {species: harvest}])
 				c.set_cvar('bags', dump_json(bag))
 				base += f' -f "Your fish harvest was added to your bag!|{harvest} pounds of **{species}** was added to your __{bag_name.capitalize()}__ pouch for you!"'
-				base += f' -footer "`!survival help` | @eternalphoenix64#3855"'
+				base += f' -footer "!survival help | @eternalphoenix64#3855"'
+		elif harvesting and targeted == False:
+			base += f' -f "Catch and Release|You wanted to catch a **{"** or **".join(specific_species)}** but caught **{species}** instead, so you threw it back."'
+			base += f' -footer "!survival help | @eternalphoenix64#3855"'
 		else:
 			base += f' -f "Catch and Release|You\'re a good person. Thank you for not overfishing."'
+			base += f' -footer "!survival help | @eternalphoenix64#3855"'
 	else:
 		base += f' -f "Your fish got away!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
-		base += f' -footer "`!survival help` | @eternalphoenix64#3855"'
+		base += f' -footer "!survival help | @eternalphoenix64#3855"'
 else:
 	base += f' -f "You couldn\'t find anything!|**DC {find_dc}**\n**{fskill}:** {find_check}"'
-	base += f' -footer "`!survival help` |  @eternalphoenix64#3855"'
+	base += f' -footer "!survival help |  @eternalphoenix64#3855"'
+
+#cooldown handling
+if settings.get('fishCoolTime') is not None and settings.get('fishCoolTime') > 0:
+	period = settings.get('fishCoolTime')
+else:
+	period=settings.get('coolTime')
+if settings.get('cooldown') == True or settings.get('fishCool') == True:
+	last=float(get('last_fish',0))
+	current=float(time()) 
+	if (current-last) < period:
+		if period < 91:
+			errtext = f' "This command can only be run every {period} seconds"'
+		else:
+			x = int(last+period)
+			errtext = f'''"You can do this again at {'<t:' + x + ':f>'}"'''
+		err(errtext)
+	else:
+		c.set_cvar('last_fish',current)
+
 return base
 </drac2>
