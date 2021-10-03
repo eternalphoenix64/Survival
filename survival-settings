@@ -1,80 +1,177 @@
 <drac2>
 args = &ARGS&
+parse = argparse(args)
 
-#Help setup
-help = 'help survival settings -here'
-if len(args) == 1 and args[0].lower() in ['help', '?']:
-    return help
+# Help setup
+help = f'help {ctx.alias} settings -here'
+if len(args) == 1 and args[0].lower() in '?help':
+	return help
 
-#Text for the embeds
-#general insert
+datahelp = f'''embed -title 'Setting Up Species SVARs' -desc 'The ins and outs of using the alias to create your survival svars. Note that you must be an admin or Dragonspeaker/ServerAliaser to modify svars, and cannot run the commands if you are not properly permissioned.' -f 'Addition:|To add a new species, there are two options. Individual addition or multi-add. But this can only be done within the same Species list. You must specify the species name, maximum harvestable weight, percent value, and DC (or AC if editing hunting svars). The alias will automatically place it in the correct order.\nSyntax for single add:\n`{ctx.prefix}survival settings <SpeciesList> add -species "Species Name" -weight weight_value -percent precent_value -DC dc_value` (use AC instead of DC for hunt svars)\nSyntax for multi-add:\n`{ctx.prefix}survival settings <SpeciesList> add -data "Species Name"|weight_value|percent_value|dc_value` (repeat for each -data you want to add)\n\nExamples:\n(single add) `{ctx.prefix}survival settings HuntSpeciesSmall add -species Squirrel -weight 5 -percent 44 -AC 15`\n(multi-add) `{ctx.prefix}survival settings ForageSpecies add -data "Tula Berries"|25|52|17 -data Turnips|22|73|18`\n_ _' -f 'Modification:|To modify a species within an existing svar, the alias needs to know which svar to update, then needs to know what data to change. Just as with additions, modifications can be done single or multi, but only within the same species list. The alias will automatically check and make sure that all items are in the correct order and rearrange as necessary. You can skip any inputs that you wish to remain unchanged\nSyntax for single modify:\n`{ctx.prefix}survival settings <SpeciesList> modify -species "Species Name" -weight weight_value -percent precent_value -DC dc_value` (use AC instead of DC for hunt svars)\nSyntax for multi-add:\n`{ctx.prefix}survival settings <SpeciesList> modify -data "Species Name"|weight_value|percent_value|dc_value` (repeat for each -data you want to add)\n\nExamples:\n(single modify): `{ctx.prefix}survival settings HuntSpeciesBig modify -species Deer -weight 200 -AC 22`\n(multi-modify): `{ctx.prefix}survival settings FishSpecies modify -data Catfish|15||12 -data Carp||55|10`\n_ _' -f 'Remove:|To remove a species from an svar, the alias only needs to know which svar to remove from and which species to remove. This can be done as a single removal or multiple removal from within the same svar.\nSyntax for removal:\n`{ctx.prefix}survival settings <SpeciesList> remove -species "Species Name"` (use multiple -species to remove several species)\nYou can do `{ctx.prefix}survival settings <SpeciesList> remove all` to empty a list and start anew\n\nExamples:\n(single remove): `{ctx.prefix}survival settings FishSpecies remove -species Bass`\n(multi-remove): `{ctx.prefix}survival settings HuntSpeciesAquatic remove -species Snapper -species Barracuda`\n(all remove): `{ctx.prefix}survival settings ForageSpecies remove all`' '''
+if len(args) == 1 and args[0].lower() in 'lists':
+    return datahelp
+
+# Update settings
+settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}'))
+if any(x.lower() in (s.lower() for s in settings.keys()) for x in (p.lower() for p in parse)):
+	for key in settings.keys():
+		if parse.last(key):
+			if typeof(settings.get(key)) != 'str':
+				settings.update({key: load_json(parse.last(key))})
+			else:
+				settings.update ({key: parse.last(key)})
+	return f'svar SurvSettings {dump_json(settings)}'
+
+# Update the species lists
+fishdata = load_json(get_svar("FishSpecies", '[{"species": "Catfish", "weight": 20, "percent": 0, "DC": 10}, {"species": "Bass", "weight": 5, "percent": 35, "DC": 5}, {"species": "Carp", "weight": 10, "percent": 60, "DC": 5}, {"species": "Salmon", "weight": 25, "percent": 75, "DC": 15}, {"species": "Sturgeon", "weight": 100, "percent": 90, "DC": 15}]'))
+sgdata = load_json(get_svar("HuntSpeciesSmall", '[{"species": "Squirrel", "weight": 5, "percent": 0, "AC": 10}, {"species": "Rabbit", "weight": 8, "percent": 45, "AC": 11}, {"species": "Turkey", "weight": 20, "percent": 75, "AC": 12}, {"species": "Waterfowl", "weight": 10, "percent": 85, "AC": 15}, {"species": "Pheasant", "weight": 5, "percent": 95, "AC": 14}]'))
+bgdata = load_json(get_svar("HuntSpeciesBig", '[{"species": "Deer", "weight": 100, "percent": 0, "AC": 14}, {"species": "Elk", "weight": 200, "percent": 40, "AC": 16}, {"species": "Bear", "weight": 150, "percent": 65, "AC": 18}, {"species": "Boar", "weight": 350, "percent": 75, "AC": 18}, {"species": "Antelope", "weight": 125, "percent": 90, "AC": 16}, {"species": "Mountain Lion", "weight": 80, "percent": 95, "AC": 17}]'))
+aqdata = load_json(get_svar("HuntSpeciesAquatic", '[{"species": "Crab", "weight": 5, "percent": 0, "AC": 13}, {"species": "Snapper", "weight": 8, "percent": 30, "AC": 12}, {"species": "Cod", "weight": 13, "percent": 65, "AC": 14}, {"species": "Yellowtail", "weight": 22, "percent": 85, "AC": 16}, {"species": "Barracuda", "weight": 70, "percent": 97, "AC": 18}]'))
+foragedata = load_json(get_svar("ForageSpecies", '[{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]'))
+valids = ['FishSpecies', 'HuntSpeciesSmall', 'HuntSpeciesBig', 'HuntSpeciesAquatic', 'ForageSpecies']
+datas = [fishdata, sgdata, bgdata, aqdata, foragedata]
+newdata = []
+addition = {}
+percentlist = []
+if any(x.lower() in (p.lower() for p in parse) for x in valids):
+	for i in valids:
+		if i.lower() in (p.lower() for p in parse):
+			dc_key = "AC" if "hunt" in i.lower() else "DC"
+			if 'add' in args:
+				if parse.get('data'):
+					for add in parse.get('data'):
+						species, weight, percent, dc = (add.split('|') + ["","",""])[:4]
+						sadd = {"species": species.title(), "weight": int(weight), "percent": int(percent), dc_key: int(dc)}
+						datas[valids.index(i)].append(sadd)
+					for j in datas[valids.index(i)]:
+						percentlist.append(j.get('percent'))
+					percentlist.sort()
+					for k in percentlist:
+						for j in datas[valids.index(i)]:
+							if k == j.get('percent'):
+								newdata.append(j)
+				else:
+					addition["species"] = parse.last('species')
+					addition["weight"] = int(parse.last('weight'))
+					addition["percent"] = int(parse.last('percent'))
+					addition[dc_key] = int(parse.last(dc_key))
+					for j in datas[valids.index(i)]:
+						if j.get('percent') < addition.get('percent') or addition in newdata:
+							newdata.append(j)
+						elif j.get('percent') > addition.get('percent'):
+							newdata.append(addition)
+							newdata.append(j)
+						elif j.get('percent') == addition.get('percent'):
+							err("You cannot have two species with the same percent")
+					if addition not in newdata:
+						newdata.append(addition)
+				return f'svar {i} {dump_json(newdata)}'
+			elif 'modify' in args or 'edit' in args:
+				if parse.get('data'):
+					for mod in parse.get('data'):
+						species, weight, percent, dc = (mod.split('|') + ["","",""])[:4]
+						smod = {"species": species.title(), "weight": (int(weight) if weight != "" else weight), "percent": (int(percent) if percent != "" else percent), dc_key: (int(dc) if dc != "" else dc)}
+						for j in datas[valids.index(i)]:
+							if j.get('species').lower() == species.lower():
+								for key in j.keys():
+									if smod.get(key) != "":
+										if typeof(j.get(key)) != 'str':
+											j.update({key: load_json(smod.get(key))})
+										else:
+											j.update({key: smod.get(key)})
+				else:
+					for j in datas[valids.index(i)]:
+						if parse.last('species') == j.get('species'):
+							for key in j.keys():
+								if parse.last(key):
+									if typeof(j.get(key)) != 'str':
+										j.update({key: load_json(parse.last(key))})
+									else:
+										j.update ({key: parse.last(key)})
+				for j in datas[valids.index(i)]:
+					percentlist.append(j.get('percent'))
+				percentlist.sort()
+				for k in percentlist:
+					for j in datas[valids.index(i)]:
+						if k == j.get('percent'):
+							newdata.append(j)
+				return f'svar {i} {dump_json(newdata)}'
+			elif 'remove' in args or 'delete' in args:
+				if 'all' in args:
+					datas[valids.index(i)] = []
+				else:
+					for j in datas[valids.index(i)]:
+						for species in parse.get('species'):
+							if j.get('species').lower() == species.lower():
+								datas[valids.index(i)].remove(j)
+				return f'svar {i} {dump_json(datas[valids.index(i)])}'
+			else:
+				err("You didn't tell the alias what to do with your species list. You may have typoed or used the wrong argument(s)")
+
+# Text for the embeds
+# General insert
 general = """ -f 'Default of `SurvSettings`|```py
 {"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}
-```
-`"xxxxFind"` is a list that determines percentage of DCs for the find process. The DC starts at 5, and adds 5 for each value less than the d100 roll. Therefore - max DC is 5+5*n where n is the length of the list.
+```' """
 
-`"xxxxHarvDC"` defines the DC for 100% weight harvest. Set `"harvest"` to `true` allows users to customize, `false` turns automatic harvest off on the server level. 
-
-If `"cooldown"` is set `true`, the global cooldown timer becomes active. If `xxxxCool` is set `true`, the global cooldown is overriden for the `xxxx` alias. Make sure any active timer has a cooldown time greater than 0, time is in seconds.'"""
-
-#fish insert
+# Fish insert
 fish = """ -f 'Default of `FishSpecies`|```py
 [{"species": "Catfish", "weight": 20, "percent": 0, "DC": 10}, {"species": "Bass", "weight": 5, "percent": 35, "DC": 5}, {"species": "Carp", "weight": 10, "percent": 60, "DC": 5}, {"species": "Salmon", "weight": 25, "percent": 75, "DC": 15}, {"species": "Sturgeon", "weight": 100, "percent": 90, "DC": 15}]
-```
-Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys.
-`"species"` is, clearly, the name of the species.
-`"weight"` is the maximum weight that can be harvested.
-`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
-`"DC"` is the DC to catch the fish once it's been hooked.'"""
+```' """
 
-#hunt insert
-hunt = """ -f 'Default of `HuntSpeciesSmall`|(`HuntSpeciesLarge` is the same format)
+# Hunt insert
+hunt = """ -f 'Default of `HuntSpeciesSmall`|(`HuntSpeciesBig` and `HuntSpeciesAquatic` are the same format)
 ```py
 [{"species": "Squirrel", "weight": 5, "percent": 0, "AC": 10}, {"species": "Rabbit", "weight": 8, "percent": 45, "AC": 11}, {"species": "Turkey", "weight": 20, "percent": 75, "AC": 12}, {"species": "Waterfowl", "weight": 10, "percent": 85, "AC": 15}, {"species": "Pheasant", "weight": 5, "percent": 95, "AC": 14}]
-```
-Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys.
-`"species"` is, clearly, the name of the species.
-`"weight"` is the maximum weight that can be harvested.
-`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
-`"AC"` is the AC of the animal for a vitals hit, set this higher than standard beasts to simulate the accuracy of a vitals hit.'"""
+```' """
 
-#hunt large insert
-huntlarge = """ -f 'Just in case you want to see the `HuntSpeciesLarge` default|```py
+# Hunt large insert
+huntlarge = """ -f 'Just in case you want to see the `HuntSpeciesBig` default|```py
 [{"species": "Deer", "weight": 100, "percent": 0, "AC": 14}, {"species": "Elk", "weight": 200, "percent": 40, "AC": 16}, {"species": "Bear", "weight": 150, "percent": 65, "AC": 18}, {"species": "Boar", "weight": 350, "percent": 75, "AC": 18}, {"species": "Antelope", "weight": 125, "percent": 90, "AC": 16}, {"species": "Mountain Lion", "weight": 80, "percent": 95, "AC": 17}]
 ```' """
 
-#forage insert
+# Hunt aquatic insert
+huntaqua = """ -f 'Just in case you want to see the `HuntSpeciesAquatic` default|```py
+[{"species": "Crab", "weight": 5, "percent": 0, "AC": 13}, {"species": "Snapper", "weight": 8, "percent": 30, "AC": 12}, {"species": "Cod", "weight": 13, "percent": 65, "AC": 14}, {"species": "Yellowtail", "weight": 22, "percent": 85, "AC": 16}, {"species": "Barracuda", "weight": 70, "percent": 97, "AC": 18}]
+```' """
+
+# Forage insert
 forage = """ -f 'Default of `ForageSpecies`|```py
 [{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]
-```
-Note that this is a list of dicts. More dicts can be added to the list. Each dict has 4 keys. 
-`"species"` is, clearly, the name of the species.
-`"weight"` is the maximum weight that can be harvested.
-`"percent"` is the likelihood of appearance - **the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.
-`"DC"` is the DC to determine if the food that is found is safe to eat'"""
+```' """
 
-#Setup the core of the embed
-base = f'embed -title "How to adjust the settings for the Survival Collection" -thumb {image} -color {color} -desc "The customization of the collection is dependent on several svars. Each alias can draw from an svar to get a different set of species and their likelihood of appearance and DC to catch. An additional svar can adjust maximum DCs, likelihood of those DCs, and a few other settings" -footer "All arguments in < args > brackets are mandatory arguments and the alias won\'t work without them. Arguments in [ args ] brackets are optional." -f "Setting your own svar|Run `!svar <svar name> <value>`, see valid svar names below"'
+# Setup the core of the embed
+base = f'embed -title "How to adjust the settings for the Survival Collection" -color {color} -desc "The customization of the collection is dependent on several svars. Each alias can draw from an svar to get a different set of species and their likelihood of appearance and DC to catch. An additional svar can adjust maximum DCs, likelihood of those DCs, and a few other settings" -footer "All arguments in < args > brackets are mandatory arguments and the alias won\'t work without them. Arguments in [ args ] brackets are optional." -f "Setting your own svar|Run `!svar <svar name> <value>`, see valid svar names below"'
 
-#Setup SurvSetting field
+# Setup SurvSetting field
 if 'gen' in args or 'general' in args or len(args) == 0:
-    base += f'{general}'
+	base += f'{general}'
+	base += f' -f "What each does|- `"xxxxFind"` is a list that determines percentage of DCs for the find process for the `xxxx` alias. The DC starts at 5, and adds 5 for each value less than the d100 roll. Therefore - the max DC is 5+(5*n) where n is how many numbers are inside the [].\n\n- `"xxxxHarvDC"` defines the DC for 100% weight harvest. Setting `"harvest"` to `true` allows users to customize with cvars/uvars, `false` turns automatic harvesting off on the server level.\n\n- If `"cooldown"` is set `true`, the global cooldown timer becomes active. If `xxxxCool` is set `true`, the global cooldown is overriden for the `xxxx` alias. Make sure that any active timer has an associated cooldown time greater than 0, time is in seconds."'
+	base += f' -f "Setup through alias|`{ctx.prefix}survival settings help` provides the arguments. __Capitalization matters__\n\n`{ctx.prefix}survival settings [-key new value]` will update the SurvSettings svar. See `{ctx.prefix}survival settings general` for the original data. Values inside \"quotes\" are valid `-key`s\n\nTo change an svar for a species list, you must tell `{ctx.prefix}survival settings`:\n-Which svar to access (e.g. `HuntSpeciesAquatic`)\n-Whether it is an addition, modification, or removal of a species\n-The appropriate data for that type of change. An addition requires telling it the species, weight, percent, and DC (or AC for hunting). Modification requires only the components being changed to be specified. Removal requires only the species name. Note that you must be an admin or have a role called \"ServerAliaser\" or \"Dragonspeaker\" to use this command."'
+	base += f' -f "More Information|This embed is way too huge to show you everything all at once. Use the arguments `fish`, `hunt`, and `forage` to get more specific information. But if you really want __***EVERYTHING***__, run `{ctx.prefix}survival settings general fish hunt huntlarge huntaquatic forage` and it will output everything."'
  
-#Setup the fishspecies field
-if 'fish' in args or len(args) == 0:
-    base += f'{fish}'
+# Setup the fishspecies field
+if 'fish' in args:
+	base += f'{fish}'
 
-#Setup the huntspecies field
-if 'hunt' in args or len(args) == 0:
-    base += f'{hunt}'
+# Setup the huntspecies field
+if 'hunt' in args:
+	base += f'{hunt}'
 
-#show the HuntSpeciesLarge default
-if 'huntlarge' in args or len(args) == 0:
-    base += f'{huntlarge}'
+# Show the HuntSpeciesBig default
+if 'huntlarge' in args:
+	base += f'{huntlarge}'
 
-#Setup the foragespecies field
-if 'forage' in args or len(args) == 0:
-    base += f'{forage}'
+# Show the HuntSpeciesAquatic default
+if 'huntaquatic' in args:
+	base += f'{huntaqua}'
+
+# Setup the foragespecies field
+if 'forage' in args:
+	base += f'{forage}'
+
+if any(y in args for y in ['fish', 'hunt', 'huntlarge', 'huntaquatic', 'forage']):
+	base += f' -f "What it all means|Note that the species svars are each a list of dicts. More dicts can be added to the list. Each dict has 4 keys.\n\n`"species"` is, clearly, the name of the species.\n`"weight"` is the maximum weight that can be harvested.\n`"percent"` is the likelihood of appearance - **Note: the list MUST be in order of least to greatest percent, and the first item must start at 0 and there can be no overlap**. Exceeding 100 will result in a species that never shows up.\n`"DC"` (for fish and forage) determine how hard it is to catch a fish or figure out if plant life is safe to eat. `"AC"` (for hunting) is the AC of the animal __for a vitals hit__, set this higher than standard beasts to simulate the accuracy of a vitals hit. Use arguments `huntlarge` and `huntaquatic` to view the default data for those svars"'
 
 return base
 </drac2>
