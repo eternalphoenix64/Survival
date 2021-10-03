@@ -3,13 +3,20 @@
 # Setup the embed
 base = f'embed -title "{name} goes fishing!" -color {color} -thumb {image} -desc "Fishing is a complicated process. You need to find a good spot, choose the right bait, hook a fish and bring it in, then gut and clean the fish to harvest the meat. There\'s a reason they don\'t call it catching, y\'know."'
 
-# Load data
-c = character()
-cs = character().skills
-args = &ARGS&
-parse = argparse(args)
+# Load svars
 fishdata = load_json(get_svar("FishSpecies", '[{"species": "Catfish", "weight": 20, "percent": 0, "DC": 10}, {"species": "Bass", "weight": 5, "percent": 35, "DC": 5}, {"species": "Carp", "weight": 10, "percent": 60, "DC": 5}, {"species": "Salmon", "weight": 25, "percent": 75, "DC": 15}, {"species": "Sturgeon", "weight": 100, "percent": 90, "DC": 15}]'))
 settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}'))
+
+# Error on empty fishdata
+if len(fishdata) == 0 or len(fishdata[0]) == 0:
+	err("Seems like your server's bot gurus have disabled fishing. Please contact them to correct this. They can check `{ctx.prefix}svar FishSpecies` to fix it.")
+
+# Load data and seed variables
+c = character()
+cs = character().skills
+rr_num = c.csettings.get("reroll", None)
+args = &ARGS&
+parse = argparse(args)
 dc_percent_list = settings.get("fishFind")
 max_DC = settings.get("fishHarvDC")
 percentile_species = vroll('1d100')
@@ -19,6 +26,8 @@ misc_bonus = ""
 find_bonus = ""
 catch_bonus = ""
 harv_bonus = ""
+
+# Setup bonuses from args
 bonus = parse.get('b')
 fbonus = parse.get('fb')
 cbonus = parse.get('cb')
@@ -32,7 +41,7 @@ if "-cb" in args:
 if "-hb" in args:
 	harv_bonus += f'+{hbonus[0]}'
 
-#Setup advantage boolwise logic
+# Setup advantage boolwise logic
 advbase = parse.adv(boolwise=True)
 far = parse.adv(custom={'adv': 'fadv', 'dis': 'fdis'}, boolwise=True)
 car = parse.adv(custom={'adv': 'cadv', 'dis': 'cdis'}, boolwise=True)
@@ -87,8 +96,8 @@ else:
 	harvesting = True
 
 # Help setup
-help = 'help fish -here'
-if len(args) == 1 and args[0].lower() in ['help', '?']:
+help = f'help {ctx.alias} -here'
+if len(args) == 1 and args[0].lower() in '?help':
 	return help
 
 # Establish DC to find a good fishing spot
@@ -116,7 +125,7 @@ catch_dc = fishdata[index].get('DC')
 species = fishdata[index].get('species')
 max_weight = fishdata[index].get('weight')
 
-#handling of specific species
+# Handling of specific species
 targeted = None
 if len(specific_species) > 0 and species in specific_species:
 	targeted = True
@@ -148,7 +157,8 @@ else:
 	f_skills_list = ["Animal Handling", "Insight", "Investigation", "Nature", "Perception", "Survival"]
 	findex = find_skill_list.index(fab)
 	fskill = f_skills_list[findex]
-find_string = fab.d20(base_adv=far) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + find_bonus
+fmc = (10 if c.csettings.get("talent", False) and fab.prof else None)
+find_string = fab.d20(far, rr_num, fmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + find_bonus
 find_check = vroll(find_string)
 
 # Establish the catch check
@@ -167,7 +177,8 @@ else:
 	c_skills_list = ["Animal Handling", "Athletics", "Survival"]
 	cindex = catch_skill_list.index(cab)
 	cskill = c_skills_list[cindex]
-catch_string = cab.d20(base_adv=car) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + catch_bonus
+cmc = (10 if c.csettings.get("talent", False) and cab.prof else None)
+catch_string = cab.d20(car, rr_num, cmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + catch_bonus
 catch_check = vroll(catch_string)
 
 # Establish the harvest check
@@ -189,7 +200,8 @@ else:
 	h_skills_list = ["Animal Handling", "Medicine", "Nature", "Survival"]
 	hindex = harv_skill_list.index(hab)
 	hskill = h_skills_list[hindex]
-harvest_string = hab.d20(base_adv=har) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + harv_bonus
+hmc = (10 if c.csettings.get("talent", False) and hab.prof else None)
+harvest_string = hab.d20(har, rr_num, hmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + harv_bonus
 harvest_check = vroll(harvest_string)
 
 # Process the harvest check, even if things weren't caught
@@ -210,7 +222,7 @@ if find_check.total >= find_dc:
 		if harvesting and (targeted == True or targeted == None):
 			base += f' -f "Time to clean your catch|**DC {max_DC}** (for 100%)\n**Max Weight:** {max_weight} lbs.\n**{hskill}:** {harvest_check}/{max_DC}*100 = **{harv_percent}%** (max 100)\nYou harvested: **{harvest}** lbs. of **{species}**"'
 			if bag_integration is False:
-				base += f' -footer "!survival help | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
+				base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
 			else:
 				bag_name = 'Fish'
 				bag = load_json(get('bags', []))
@@ -225,21 +237,21 @@ if find_check.total >= find_dc:
 					bag.append([bag_name, {species: harvest}])
 				c.set_cvar('bags', dump_json(bag))
 				base += f' -f "Your fish harvest was added to your bag!|{harvest} pounds of **{species}** was added to your __{bag_name.capitalize()}__ pouch for you!"'
-				base += f' -footer "!survival help | @eternalphoenix64#3855"'
+				base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
 		elif harvesting and targeted == False:
 			base += f' -f "Catch and Release|You wanted to catch a **{"** or **".join(specific_species)}** but caught **{species}** instead, so you threw it back."'
-			base += f' -footer "!survival help | @eternalphoenix64#3855"'
+			base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
 		else:
 			base += f' -f "Catch and Release|You\'re a good person. Thank you for not overfishing."'
-			base += f' -footer "!survival help | @eternalphoenix64#3855"'
+			base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
 	else:
 		base += f' -f "Your fish got away!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
-		base += f' -footer "!survival help | @eternalphoenix64#3855"'
+		base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
 else:
 	base += f' -f "You couldn\'t find anything!|**DC {find_dc}**\n**{fskill}:** {find_check}"'
-	base += f' -footer "!survival help |  @eternalphoenix64#3855"'
+	base += f' -footer "{ctx.prefix}survival help |  @eternalphoenix64#3855"'
 
-#cooldown handling
+# Cooldown handling
 if settings.get('fishCoolTime') is not None and settings.get('fishCoolTime') > 0:
 	period = settings.get('fishCoolTime')
 else:
@@ -247,12 +259,14 @@ else:
 if settings.get('cooldown') == True or settings.get('fishCool') == True:
 	last=float(get('last_fish',0))
 	current=float(time()) 
+	x = int(last+period)
 	if (current-last) < period:
 		if period < 91:
 			errtext = f' "This command can only be run every {period} seconds"'
+		elif (current-last) <= 86400:
+			errtext = f'''"You can do this again in {'<t:' + x + ':R'}"'''
 		else:
-			x = int(last+period)
-			errtext = f'''"You can do this again at {'<t:' + x + ':f>'}"'''
+			errtext = f'''"You can do this again on {'<t:' + x + ':D'} at {'<t:' + x + ':T'}"'''
 		err(errtext)
 	else:
 		c.set_cvar('last_fish',current)
