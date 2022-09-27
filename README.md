@@ -8,8 +8,8 @@ This is where I store all my work and pending updates for the [Survival](https:/
 * Data and DCs are customizable on the server level, most other settings can be changed at the server, user, or character level
 
 ### Future plans
-* Build more customization into the aliases and allow them to write the svars for the users
-* Possibly add more aliases for more survival tasks if good ideas come up
+* Create a Read the Docs to make certain embeds and help files smaller
+* Review possibility and implementation of "overharvest" to salvage things like bone and hide
 
 ### Looking for a feature?
 Submit a bug report or feature request and I'll try to get around to it. I do this as a hobby and have a regular day job to attend to.
