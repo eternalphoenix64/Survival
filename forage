@@ -1,24 +1,26 @@
 <drac2> 
 
 # Setup the embed
-base = f'embed -title "{name} goes foraging!" -color {color} -thumb {image} -desc "Foraging isn\'t quite as simple as just walking out to a garden and picking some food off the ground. You have to find where food is growing in the wild, you have to make sure that it\'s safe food, and you have decide whether or not it\'s adequately ripe enough to eat."'
-
-# Load svars
-foragedata = load_json(get_svar("ForageSpecies", '[{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]'))
-settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}'))
-
-# Error on empty foragedata
-if len(foragedata) == 0 or len(foragedata[0]) == 0:
-	err("Seems like your server's bot gurus have disabled foraging. Please contact them to correct this. They can check `{ctx.prefix}svar ForageSpecies` to fix it.")
+base = f'''embed -title "{name} goes foraging!" -color {color} -thumb {image} -desc "Foraging isn't quite as simple as just walking out to a garden and picking some food off the ground. You have to find where food is growing in the wild, you have to make sure that it's safe food, and you have decide whether or not it's adequately ripe enough to eat."'''
 
 # Load data and seed variables
 c = character()
 cs = character().skills
 rr_num = c.csettings.get("reroll", None)
+min_harvest = 1
+harv_mod = False
+harv_mult = 1
+nl = "\n"
+backfeat = get("backgroundFeature", "")
 args = &ARGS&
 parse = argparse(args)
-dc_percent_list = settings.get("foraFind")
-max_DC = settings.get("foraHarvDC")
+rangerFT = None
+if c.levels.get('Ranger',0) > 0 and parse.get('favT'):
+	rangerFT = True
+	harv_mult *= 2
+fmov = None
+cmov = None
+hmov = None
 percentile_species = vroll('1d100')
 percentile_dc = vroll('1d100')
 loot_added = False
@@ -26,6 +28,23 @@ misc_bonus = ""
 find_bonus = ""
 catch_bonus = ""
 harv_bonus = ""
+
+# Load svars
+dataSelect = load_json(get_svar("ForageArgs", "{}"))
+foragedata = load_json(get_svar("ForageSpecies", '[{"species": "Mushrooms", "weight": 30, "percent": 0, "DC": 10}, {"species": "Berries", "weight": 50, "percent": 40, "DC": 5}, {"species": "Nuts", "weight": 20, "percent": 70, "DC": 20}, {"species": "Wild Fruit", "weight": 75, "percent": 90, "DC": 15}, {"species": "Wild Veggies", "weight": 50, "percent": 95, "DC": 18}]').replace("species","s").replace("weight","w").replace("percent","p").replace("DC","d").replace("info","i").replace("meat","m"))
+if len(dataSelect) > 0:
+	if args and args[0] in dataSelect.keys():
+		foragedata = load_json(get_svar(dataSelect.get(args[0]), "[]").replace("species","s").replace("weight","w").replace("percent","p").replace("DC","d").replace("info","i").replace("meat","m"))
+settings = load_json(get_svar("SurvSettings", '{"fishFind": [10,50,80,95], "fishHarvDC": 20, "huntFind": [10,45,75,90], "huntHarvDC": 22, "foraFind": [15,40,85,90], "foraHarvDC": 17, "harvest": true, "cooldown": false, "coolTime": 0, "fishCool": false, "fishCoolTime": 0, "huntCool": false, "huntCoolTime": 0, "forageCool": false, "forageCoolTime": 0}'))
+
+if not settings.get('coolType'):
+	settings.update({"coolType": "blank"})
+
+dc_percent_list = settings.get("foraFind")
+max_DC = settings.get("foraHarvDC")
+# Error on empty foragedata
+if len(foragedata) == 0 or len(foragedata[0]) == 0:
+	err(f'''Seems like your server's bot gurus have disabled foraging or you have used an invalid argument. Please contact them to correct this. They can check `{ctx.prefix}svar ForageSpecies` and/or `{ctx.prefix}svar ForageArgs` to fix it.''')
 
 # Setup bonuses from args
 bonus = parse.get('b')
@@ -96,7 +115,7 @@ else:
 	harvesting = True
 	
 # Help setup
-help = f'help {ctx.alias} -here'
+help = f'''help {ctx.alias} -here'''
 if len(args) == 1 and args[0].lower() in '?help':
 	return help
 
@@ -112,18 +131,20 @@ for i in dc_percent_list:
 index = 0
 specific_species = []
 for i,j in enumerate(foragedata):
-	cur_species = foragedata[i].get('species')
+	cur_species = foragedata[i].get('s')
 	for arg in args:
 		if (arg.lower() in cur_species.lower()) and (cur_species not in specific_species):
 			specific_species.append(cur_species)
-	if percentile_species.total > foragedata[i].get('percent'):
+	if percentile_species.total > foragedata[i].get('p'):
 		index += 1
 index -= 1
 
 # Load the data for that particular food
-catch_dc = foragedata[index].get('DC')
-species = foragedata[index].get('species')
-max_weight = foragedata[index].get('weight')
+catch_dc = foragedata[index].get('d')
+species = foragedata[index].get('s')
+max_weight = foragedata[index].get('w')
+information = foragedata[index].get('i')
+meat_replace = foragedata[index].get('m')
 
 # Handling of specific species
 targeted = None
@@ -136,152 +157,213 @@ elif len(specific_species) > 0 and species not in specific_species:
 if 'fath' in args:
 	fab = cs.athletics
 	fskill = "Athletics"
+	fskill_ability = "strength"
 elif 'finsi' in args:
 	fab = cs.insight
 	fskill = "Insight"
+	fskill_ability = "wisdom"
 elif 'finv' in args:
 	fab = cs.investigation
 	fskill = "Investigation"
+	fskill_ability = "intelligence"
 elif 'fmed' in args:
 	fab = cs.medicine
 	fskill = "Medicine"
+	fskill_ability = "wisdom"
 elif 'fnat' in args:
 	fab = cs.nature
 	fskill = "Nature"
+	fskill_ability = "intelligence"
 elif 'fperc' in args:
 	fab = cs.perception
 	fskill = "Perception"
+	fskill_ability = "wisdom"
 elif 'fsurv' in args:
 	fab = cs.survival
 	fskill = "Survival"
+	fskill_ability = "wisdom"
 else:
 	find_skill_list = [cs.athletics, cs.insight, cs.investigation, cs.medicine, cs.nature, cs.perception, cs.survival]
 	fab = max(find_skill_list)
 	f_skills_list = ["Athletics", "Insight", "Investigation", "Medicine", "Nature", "Perception", "Survival"]
 	findex = find_skill_list.index(fab)
 	fskill = f_skills_list[findex]
+	fsal = ["strength", "wisdom", "intelligence", "wisdom", "intelligence", "wisdom", "wisdom"]
+	fskill_ability = fsal[findex]
+if rangerFT == True and fab.prof == 1:
+  if fskill_ability == "wisdom":
+    fmov = 2*proficiencyBonus+wisdomMod
+  elif fskill_ability == "intelligence":
+    fmov = 2*proficiencyBonus+intelligenceMod
 fmc = (10 if c.csettings.get("talent", False) and fab.prof else None)
-find_string = fab.d20(far, rr_num, fmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + find_bonus
+if c.levels.get('Barbarian') >= 18 and fab == cs.athletics:
+  fmc = max(strength - cs.athletics.value,0)
+find_string = fab.d20(far, rr_num, fmc, fmov) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + find_bonus
 find_check = vroll(find_string)
 
 # Establish the safety check
 if 'chist' in args:
 	cab = cs.history
 	cskill = "History"
+	cskill_ability = "intelligence"
 elif 'cinsi' in args:
 	cab = cs.insight
 	cskill = "Insight"
+	cskill_ability = "wisdom"
 elif 'cinv' in args:
 	cab = cs.investigation
 	cskill = "Investigation"
+	cskill_ability = "intelligence"
 elif 'cmed' in args:
 	cab = cs.medicine
 	cskill = "Medicine"
+	cskill_ability = "wisdom"
 elif 'cnat' in args:
 	cab = cs.nature
 	cskill = "Nature"
+	cskill_ability = "intelligence"
 elif 'csurv' in args:
 	cab = cs.survival
 	cskill = "Survival"
+	cskill_ability = "wisdom"
 else:
 	catch_skill_list =[cs.history, cs.insight, cs.investigation, cs.medicine, cs.nature, cs.survival]
 	cab = max(catch_skill_list)
 	c_skills_list = ["History", "Insight", "Investigation", "Medicine", "Nature", "Survival"]
 	cindex = catch_skill_list.index(cab)
 	cskill = c_skills_list[cindex]
+	csal = ["intelligence", "wisdom", "intelligence", "wisdom", "intelligence", "wisdom"]
+	cskill_ability = csal[cindex]
+if rangerFT == True and cab.prof == 1:
+  if cskill_ability == "wisdom":
+    cmov = 2*proficiencyBonus+wisdomMod
+  elif cskill_ability == "intelligence":
+    cmov = 2*proficiencyBonus+intelligenceMod
 cmc = (10 if c.csettings.get("talent", False) and cab.prof else None)
-catch_string = cab.d20(car, rr_num, cmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + catch_bonus
+catch_string = cab.d20(car, rr_num, cmc, cmov) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + catch_bonus
 catch_check = vroll(catch_string)
 
 # Establish the harvest check
 if 'hmed' in args:
 	hab = cs.medicine
 	hskill = "Medicine"
+	hskill_ability = "wisdom"
 elif 'hnat' in args:
 	hab = cs.nature
 	hskill = "Nature"
+	hskill_ability = "intelligence"
 elif 'hslei' in args:
 	hab = cs.sleightOfHand
 	hskill = "Sleight of Hand"
+	hskill_ability = "dexterity"
 elif 'hsurv' in args:
 	hab = cs.survival
 	hskill = "Survival"
+	hskill_ability = "wisdom"
 else:
 	harv_skill_list = [cs.medicine, cs.nature, cs.sleightOfHand, cs.survival]
 	hab = max(harv_skill_list)
 	h_skills_list = ["Medicine", "Nature", "Sleight of Hand", "Survival"]
 	hindex = harv_skill_list.index(hab)
 	hskill = h_skills_list[hindex]
+	hsal = ["wisdom", "intelligence", "dexterity", "wisdom"]
+	hskill_ability = hsal[hindex]
+if rangerFT == True and hab.prof == 1:
+  if hskill_ability == "wisdom":
+    hmov = 2*proficiencyBonus+wisdomMod
+  elif hskill_ability == "intelligence":
+    hmov = 2*proficiencyBonus+intelligenceMod
 hmc = (10 if c.csettings.get("talent", False) and hab.prof else None)
-harvest_string = hab.d20(har, rr_num, hmc) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + harv_bonus
+harvest_string = hab.d20(har, rr_num, hmc, hmov) + ("+1d4[guidance]" if parse.get("guidance") else "") + misc_bonus + harv_bonus
 harvest_check = vroll(harvest_string)
 
 # Process the harvest check, even if things weren't caught
-if harvest_check.total < max_DC:
-	harv_percent = floor(harvest_check.total/max_DC*100)
-else:
-	harv_percent = 100
-if harv_percent/100*max_weight < 1:
-	harvest = 1
-else:
-	harvest = floor(harv_percent/100*max_weight)
+if "wanderer" in backfeat.lower():
+	min_harvest = min(max_weight, 6)
+	harv_mod = True
+if "uthgardt" in backfeat.lower():
+	harv_mult *= 2
+harv_percent = min(floor(harvest_check.total/max_DC*harv_mult*100),100)
+harvest = max(floor(harv_percent/100*max_weight),min_harvest)
+
+# Cooldown handling
+current=float(time())
+lastHunt = float(get('last_hunt',0))
+lastForage = float(get('last_forage',0))
+lastFish = float(get('last_fish',0))
+if settings.get("coolType").lower() == "hybrid":
+	period = settings.get('coolTime')
+	periodForage = settings.get('forageCoolTime')
+	x = int(lastForage+periodForage)
+	y = int(lastHunt+period)
+	z = int(lastFish+period)
+	if ((current - lastForage) < periodForage) or ((current - lastHunt) < period) or ((current - lastFish) < period):
+		if (period < 91) and (periodForage < 91):
+			errtext = f''' "This command has a hybrid cooldown and can only be run every {period} seconds since the last run of any survival alias and {periodForage} since the last forage attempt"'''
+		elif any((current - last) <= 86400 for last in [lastFish,lastHunt,lastForage]):
+			errtext = f'''"Hybrid Cooldown: If your most recent survival alias run was `!forage`, you can forage again {'<t:' + x + ':R>'}. Otherwise, try again {'<t:' + max(int(lastForage+period),y,z) + ':R>'}"'''
+		else:
+			errtext = f'''"Hybrid Cooldown: If your most recent survival alias run was `!forage`, you can forage again on {'<t:' + x + ':D>'} at {'<t:' + x + ':T>'}. Otherwise, try again on {'<t:' + max(int(lastForage+period),y,z) + ':D>'} at {'<t:' + max(int(lastForage+period),y,z) + ':T>'}"'''
+		err(errtext)
+	else:
+		c.set_cvar('last_forage', current)
+elif settings.get('cooldown') == True or settings.get('forageCool') == True:
+	if (settings.get('forageCoolTime') is not None and settings.get('forageCoolTime') > 0) or (settings.get('coolType').lower() == 'alias'):
+		period = settings.get('forageCoolTime')
+	else:
+		period = settings.get('coolTime')
+	x = int(lastForage+period)
+	if (current-lastForage) < period:
+		if period < 91:
+			errtext = f''' "This command can only be run every {period} seconds"'''
+		elif (current-lastForage) <= 86400:
+			errtext = f'''"You can do this again {'<t:' + x + ':R>'}"'''
+		else:
+			errtext = f'''"You can do this again on {'<t:' + x + ':D>'} at {'<t:' + x + ':T>'}"'''
+		err(errtext)
+	else:
+		c.set_cvar('last_forage',current)
 
 # Find a good spot (or not), check for safety (or not), harvest it and add to bag (or not)
 if find_check.total >= find_dc:
-	base += f' -f "You found a good growing spot!|**DC {find_dc}**\n**{fskill}:** {find_check}\nYou {"are foraging for" if specific_species else "end up coming across"}: **{"** or **".join(specific_species) if specific_species else species}**"'
+	base += f''' -f "You found a good growing spot!|**DC {find_dc}**{nl}**{fskill}:** {find_check}{nl}You {'are foraging for' if specific_species else 'end up coming across'}: **{'** or **'.join(specific_species) if specific_species else species}**{nl+information if information else ''}"'''
+	deposit = meat_replace if meat_replace else species
 	if catch_check.total >= catch_dc and (targeted == None or targeted == True):
-		base += f' -f "Checking for safety... it\'s safe to eat!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
+		base += f''' -f "Checking for safety... it's safe to eat!|**DC {catch_dc}**{nl}**{cskill}:** {catch_check}"'''
 		if harvesting:
-			base += f' -f "Time to harvest|**DC {max_DC}** (for 100%)\n**Max Weight:** {max_weight} lbs.\n**{hskill}:** {harvest_check}/{max_DC}*100 = **{harv_percent}%** (max 100)\nYou harvested: **{harvest}** lbs. of **{species}**"'
+			dumb = '\*'
+			base += f''' -f "Time to harvest|**DC {max_DC}** (for 100%){nl}**Max Weight:** {max_weight} lbs.{nl}**{hskill}:** {harvest_check}/{max_DC}{dumb+str(harv_mult) if harv_mult>1 else ''}\*100 = **{harv_percent}%** (max 100){nl}You harvested: **{harvest}** lbs. of **{deposit}**{nl+'*Background or class feature affected harvest math*' if harv_mod or harv_mult>1 else ''}"'''
 			if bag_integration is False:
-				base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'
+				base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855 | Harvest was not automatically added to your bag."'''
 			else:
 				bag_name = 'Forage'
 				bag = load_json(get('bags', []))
 				for bag_cat in bag:
 					if bag_name.lower() in bag_cat[0].lower():
 						bag_name = bag_cat[0]
-						bag_loot_count = bag_cat[1][species] if species in list(bag_cat[1].keys()) else 0
-						bag_cat[1][species] = bag_cat[1][species] + harvest if bag_loot_count > 0 else harvest
+						bag_loot_count = bag_cat[1][deposit] if deposit in list(bag_cat[1].keys()) else 0
+						bag_cat[1][deposit] = bag_cat[1][deposit] + harvest if bag_loot_count > 0 else harvest
 						loot_added = True
 						break
 				if not loot_added:
-					bag.append([bag_name, {species: harvest}])
+					bag.append([bag_name, {deposit: harvest}])
 				c.set_cvar('bags', dump_json(bag))
-				base += f' -f "Your foraging harvest was added to your bag!|{harvest} pounds of **{species}** was added to your __{bag_name.capitalize()}__ pouch for you!"'
-				base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
+				base += f''' -f "Your foraging harvest was added to your bag!|{harvest} pounds of **{deposit}** was added to your __{bag_name.capitalize()}__ pouch for you!"'''
+				base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'''
 		else:
-			base += f' -f "Safe to eat doesn\'t mean you have to|Thank you for not taking more food than you need. You\'re a good person."'
-			base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
+			base += f''' -f "Safe to eat doesn't mean you have to|Thank you for not taking more food than you need. You're a good person."'''
+			base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'''
 	elif targeted == False:
-		base += f' -f "Not what you were looking for|You were foraging for **{"** or **".join(specific_species)}** but all you found was **{species}**. Better luck next time."'
-		base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
+		base += f''' -f "Not what you were looking for|You were foraging for **{'** or **'.join(specific_species)}** but all you found was **{species}**. Better luck next time."'''
+		base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'''
 	else:
-		base += f' -f "Checking for safety... you can\'t be certain it is safe!|**DC {catch_dc}**\n**{cskill}:** {catch_check}"'
-		base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
+		base += f''' -f "Checking for safety... you can't be certain it's safe!|**DC {catch_dc}**{nl}**{cskill}:** {catch_check}"'''
+		base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'''
+elif find_dc >= 60 and find_check.total < find_dc:
+	base += f''' -f "There was nothing here!|**DC {find_dc}**{nl}**{fskill}:** {find_check}"'''
 else:
-	base += f' -f "You couldn\'t find anything!|**DC {find_dc}**\n**{fskill}:** {find_check}"'
-	base += f' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'
-
-# Cooldown handling
-if settings.get('forageCoolTime') is not None and settings.get('forageCoolTime') > 0:
-	period = settings.get('forageCoolTime')
-else:
-	period=settings.get('coolTime')
-if settings.get('cooldown') == True or settings.get('forageCool') == True:
-	last=float(get('last_forage',0))
-	current=float(time()) 
-	x = int(last+period)
-	if (current-last) < period:
-		if period < 91:
-			errtext = f' "This command can only be run every {period} seconds"'
-		elif (current-last) <= 86400:
-			errtext = f'''"You can do this again in {'<t:' + x + ':R'}"'''
-		else:
-			errtext = f'''"You can do this again on {'<t:' + x + ':D'} at {'<t:' + x + ':T'}"'''
-		err(errtext)
-	else:
-		c.set_cvar('last_forage',current)
+	base += f''' -f "You couldn't find anything!|**DC {find_dc}**{nl}**{fskill}:** {find_check}"'''
+	base += f''' -footer "{ctx.prefix}survival help | @eternalphoenix64#3855"'''
 
 return base
 </drac2>
